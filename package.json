@@ -1,6 +1,6 @@
 {
   "name": "vercel-deployment-downloader",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "author": "Peter Mekhaeil",
   "license": "MIT",
