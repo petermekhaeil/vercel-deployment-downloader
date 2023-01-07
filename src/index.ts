@@ -84,7 +84,7 @@ const getTeams = async (accessToken: string) => {
   return teams;
 };
 
-const getDeployments = async (accessToken: string, teamId: string) => {
+const getDeployments = async (accessToken: string, teamId: string | null) => {
   const url =
     `https://api.vercel.com/v6/deployments` +
     (teamId ? `?teamId=${teamId}` : '');
@@ -116,7 +116,7 @@ const getDeployments = async (accessToken: string, teamId: string) => {
 
 const getDeploymentFiles = async (
   accessToken: string,
-  teamId: string,
+  teamId: string | null,
   deployment: Deployment
 ) => {
   const url =
@@ -170,7 +170,7 @@ const log = (...args: any) => {
 
 const fileContentFetcher = (
   accessToken: string,
-  teamId: string,
+  teamId: string | null,
   deployment: Deployment
 ) => {
   return async function (file: FileTree) {
@@ -277,7 +277,7 @@ async function init() {
   const personalChoice: prompts.Choice = {
     title: user.username,
     description: 'Personal account',
-    value: -1
+    value: null
   };
 
   const chooseTeam = await prompts({
@@ -287,7 +287,7 @@ async function init() {
     choices: [personalChoice].concat(teamChoices)
   });
 
-  const teamId = chooseTeam.value as string;
+  const teamId = chooseTeam.value as string | null;
 
   const deployments = await getDeployments(vercelAccessToken, teamId);
 
