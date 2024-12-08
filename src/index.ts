@@ -120,7 +120,7 @@ const getDeploymentFiles = async (
   deployment: Deployment
 ) => {
   const url =
-    `https://api.vercel.com/v6/deployments/${deployment.uid}/files` +
+    `https://api.vercel.com/v7/deployments/${deployment.uid}/files` +
     (teamId ? `?teamId=${teamId}` : '');
 
   const response = await fetch(url, {
@@ -136,7 +136,7 @@ const getDeploymentFiles = async (
     throw Error(
       [
         '',
-        'Error has occurred when attempting to download list of deployments.',
+        'Error has occurred when attempting to download list of deployment files.',
         data.error.message,
         'See https://vercel.com/docs/rest-api#errors/generic-errors',
         ''
@@ -146,6 +146,7 @@ const getDeploymentFiles = async (
 
   return data;
 };
+
 
 const checkDeploymentSource = (deployment: Deployment) => {
   if (deployment.source === 'git') {
@@ -175,7 +176,7 @@ const fileContentFetcher = (
 ) => {
   return async function (file: FileTree) {
     const url =
-      `https://api.vercel.com/v6/deployments/${deployment.uid}/files/${file.uid}` +
+      `https://api.vercel.com/v7/deployments/${deployment.uid}/files/${file.uid}` +
       (teamId ? `?teamId=${teamId}` : '');
 
     const response = await fetch(url, {
@@ -185,7 +186,23 @@ const fileContentFetcher = (
       method: 'get'
     });
 
-    return response;
+    const result = await response.json();
+
+    // Handle different data formats
+    if (result.data) {
+      // Assume data is base64-encoded
+      const buffer = Buffer.from(result.data, 'base64');
+      return {
+        body: buffer,
+        fileName: file.name
+      };
+    } else if (result.error) {
+      throw new Error(
+        `Error fetching file contents: ${result.error.message}`
+      );
+    } else {
+      throw new Error('Unexpected response format');
+    }
   };
 };
 
@@ -196,8 +213,7 @@ const downloadFile = async (
 ) => {
   const downloadPath = resolve(path, entry.name);
 
-  // There are some encounters in testing where some files named
-  // the same as directories. We will skip them until I understand why.
+  // Check if directory already exists
   if (fs.existsSync(downloadPath) && fs.lstatSync(downloadPath).isDirectory()) {
     return;
   }
@@ -207,14 +223,10 @@ const downloadFile = async (
   try {
     const data = await fetcher(entry);
 
-    return new Promise((resolve, reject) => {
-      const dest = fs.createWriteStream(downloadPath);
-      data.body.pipe(dest);
-      data.body.on('end', () => resolve(downloadPath));
-      dest.on('error', reject);
-    });
+    // Write the file
+    return fs.promises.writeFile(downloadPath, data.body);
   } catch (e) {
-    console.error(e);
+    console.error(`Failed to download ${entry.name}:`, e);
   }
 };
 
@@ -242,7 +254,7 @@ const parseFileTree = async (
   fetcher: Function
 ) => {
   for (let entry of fileTree) {
-    await parseFileTreeEntry(entry, path, fetcher);
+    await  parseFileTreeEntry(entry, path, fetcher);
   }
 };
 
